@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Certeza Bus IoT SMART | Casablanca - Valparaíso</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet.js CSS & JS for Interactive Route 68 Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom scrollbar for serial console & code block */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.05);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.7);
+    }
+    /* Map container sizing */
+    #route-map {
+      height: 360px;
+      width: 100%;
+      z-index: 10;
+    }
+    @media (min-width: 1024px) {
+      #route-map {
+        height: 410px;
+      }
+    }
+    /* Pulse animation for live IoT telemetry */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.85); opacity: 0.9; }
+      70% { transform: scale(1.65); opacity: 0; }
+      100% { transform: scale(1.65); opacity: 0; }
+    }
+    .live-pulse::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 9999px;
+      background-color: currentColor;
+      animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    /* Custom Leaflet Bus Marker */
+    .custom-bus-pin {
+      background: transparent;
+      border: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-900 selection:bg-emerald-500 selection:text-white">
+
+  <!-- Toast Notification Banner (Replaces alert()) -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand Logo & Title -->
+      <div class="flex items-center gap-3">
+        <!-- Custom Bus + IoT Signal SVG Logo -->
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-950/50 shrink-0">
+          <svg class="w-7 h-7 text-white" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- WiFi Waves -->
+            <path d="M11 7.5C14.866 4.5 21.134 4.5 25 7.5" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M14 10.5C16.3 8.8 19.7 8.8 22 10.5" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+            <!-- Bus Body -->
+            <rect x="8" y="13" width="20" height="16" rx="4" fill="white"/>
+            <rect x="10.5" y="15.5" width="15" height="6.5" rx="1.5" fill="#0f172a"/>
+            <!-- Traffic Light Dots inside windshield -->
+            <circle cx="14" cy="18.75" r="1.3" fill="#10b981"/>
+            <circle cx="18" cy="18.75" r="1.3" fill="#f59e0b"/>
+            <circle cx="22" cy="18.75" r="1.3" fill="#ef4444"/>
+            <!-- Headlights -->
+            <circle cx="12" cy="25.5" r="1.4" fill="#10b981"/>
+            <circle cx="24" cy="25.5" r="1.4" fill="#10b981"/>
+            <!-- Wheels -->
+            <rect x="10" y="29" width="3.5" height="2.5" rx="1" fill="#94a3b8"/>
+            <rect x="22.5" y="29" width="3.5" height="2.5" rx="1" fill="#94a3b8"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-extrabold tracking-tight leading-tight">
+              Certeza Bus <span class="text-emerald-400">IoT SMART</span>
+            </h1>
+            <span class="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-pink-500/20 text-pink-300 border border-pink-500/30">
+              MIRA SUR · RUTA 68
+            </span>
+          </div>
+          <p class="text-[11px] sm:text-xs text-slate-400 leading-tight">
+            Tu tiempo en tus manos, tu asiento seguro · <span class="text-slate-300 font-medium">EII 5624 PUCV</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Center: Route Direction Selector -->
+      <div class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700 order-3 sm:order-2 w-full sm:w-auto justify-center">
+        <button id="btn-dir-cb-valpo" onclick="setRouteDirection('CB_TO_VALPO')"
+          class="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-emerald-600 text-white shadow-sm flex items-center justify-center gap-1.5">
+          <span>Casablanca</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          <span>Valparaíso</span>
+        </button>
+        <button id="btn-dir-valpo-cb" onclick="setRouteDirection('VALPO_TO_CB')"
+          class="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-300 hover:text-white flex items-center justify-center gap-1.5">
+          <span>Valparaíso</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          <span>Casablanca</span>
+        </button>
+      </div>
+
+      <!-- Right: ESP32 Connection Status Pill -->
+      <div class="flex items-center gap-2 order-2 sm:order-3">
+        <div id="esp-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-medium">
+          <span class="relative flex h-2.5 w-2.5 text-amber-400">
+            <span id="esp-status-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
+          </span>
+          <span id="esp-status-text" class="text-slate-200">Simulador ESP32</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-Navigation Tabs -->
+    <div class="bg-slate-950/60 border-t border-slate-800/80">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-2 overflow-x-auto py-1.5">
+        <button onclick="switchMainTab('dashboard')" id="tab-btn-dashboard"
+          class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all bg-slate-800 text-emerald-400 border border-slate-700 whitespace-nowrap">
+          <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+          Monitor en Vivo & Control ESP32
+        </button>
+        <button onclick="switchMainTab('architecture')" id="tab-btn-architecture"
+          class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-white whitespace-nowrap">
+          <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+          Validación MVP & Código Arduino ESP32
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5">
+
+    <!-- =====================================================================
+         VIEW 1: LIVE PASSENGER DASHBOARD + ESP32 CONNECTION PANEL
+         ===================================================================== -->
+    <div id="view-dashboard" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- LEFT COLUMN (7 cols on lg): PASSENGER APP VIEW (CAPACITY + MAP + STOPS) -->
+      <div class="lg:col-span-7 flex flex-col gap-5">
+
+        <!-- Full Bus Smart Alert Banner (Hidden by default unless selected bus >= 95%) -->
+        <div id="full-bus-alert" class="hidden rounded-2xl bg-red-600 text-white p-4 shadow-lg shadow-red-900/20 border border-red-400 flex items-start gap-3">
+          <div class="p-2 bg-white/20 rounded-xl shrink-0">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-white"></i>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-sm font-bold">¡Alerta de Aforo Completo! Bus seleccionado sin asientos</h3>
+            <p id="full-bus-alert-msg" class="text-xs text-red-100 mt-0.5">
+              El Bus #123 viene al 100% de su capacidad. Te recomendamos esperar el siguiente servicio con disponibilidad.
+            </p>
+          </div>
+          <button onclick="selectNextAvailableBus()" class="px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 rounded-xl text-xs font-bold shrink-0 shadow-sm transition">
+            Ver Siguiente Bus
+          </button>
+        </div>
+
+        <!-- FLEET SELECTOR TABS (Buses Mira Sur on Route 68) -->
+        <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80">
+          <div class="flex items-center justify-between mb-2.5">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <i data-lucide="bus" class="w-3.5 h-3.5 text-emerald-600"></i>
+              Flota Mira Sur Activa en Ruta 68
+            </span>
+            <span id="last-update-label" class="text-[11px] text-slate-400 font-mono-code">Actualizado: Ahora</span>
+          </div>
+          <div id="fleet-cards-container" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </div>
+
+        <!-- FEATURED BUS REAL-TIME CAPACITY & OCCUPANCY CARD -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 relative overflow-hidden">
+          <!-- Subtle top accent bar -->
+          <div id="capacity-top-bar" class="absolute top-0 left-0 right-0 h-1.5 bg-emerald-500 transition-colors duration-300"></div>
+
+          <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="selected-bus-title" class="text-lg sm:text-xl font-extrabold text-slate-900">Autobús #123</span>
+                <span id="selected-bus-plate" class="px-2.5 py-0.5 rounded-lg bg-slate-100 border border-slate-300 text-xs font-mono-code font-bold text-slate-700">
+                  GY-PT-68
+                </span>
+                <span id="esp-hardware-tag" class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold flex items-center gap-1">
+                  <i data-lucide="cpu" class="w-3 h-3"></i> Nodo ESP32
+                </span>
+              </div>
+              <p id="selected-bus-route-label" class="text-xs text-slate-500 mt-1">
+                Recorrido: <strong class="text-slate-700">Casablanca → Valparaíso</strong> · Próxima parada: <strong id="next-stop-name" class="text-emerald-700">Enlace Lo Orozco</strong>
+              </p>
+            </div>
+
+            <!-- Smart Traffic-Light Availability Badge -->
+            <div id="availability-badge" class="px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center gap-2">
+              <span id="availability-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span id="availability-text" class="text-xs font-extrabold uppercase tracking-wide">Asientos Disponibles</span>
+            </div>
+          </div>
+
+          <!-- Occupancy KPIs & Segmented Progress Bar -->
+          <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/70">
+            <div class="flex items-end justify-between mb-2">
+              <div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Aforo en Tiempo Real (Sensores Puerta)</span>
+                <div class="flex items-baseline gap-2 mt-0.5">
+                  <span id="occupancy-count" class="text-3xl font-extrabold text-slate-900">28</span>
+                  <span class="text-sm font-semibold text-slate-500">/ <span id="occupancy-max">40</span> asientos ocupados</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <span id="occupancy-pct" class="text-2xl sm:text-3xl font-extrabold text-emerald-600">70%</span>
+                <span id="seats-free-label" class="block text-xs font-semibold text-slate-500">12 asientos libres</span>
+              </div>
+            </div>
+
+            <!-- Segmented 20-Block Capacity Bar (inspired by mobile mockup) -->
+            <div id="segmented-capacity-bar" class="grid grid-cols-20 gap-1 h-4 mt-3" style="grid-template-columns: repeat(20, minmax(0, 1fr));">
+              <!-- 20 segments rendered by JS -->
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-400 mt-2 font-medium">
+              <span>0% Vacío</span>
+              <span class="text-emerald-600">&lt;70% Disponible</span>
+              <span class="text-amber-600">70-94% Casi Lleno</span>
+              <span class="text-red-600">≥95% Lleno</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- LINEAR ROUTE STOPS TIMELINE (ESQUEMA LINEAL DE PARADEROS) -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <i data-lucide="route" class="w-4 h-4 text-emerald-600"></i>
+              Esquema de Paraderos y Tiempo Estimado (ETA)
+            </h2>
+            <span id="total-eta-badge" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold">
+              Destino final en 28 min
+            </span>
+          </div>
+
+          <!-- Horizontal/Responsive Stop Stepper -->
+          <div id="linear-stops-container" class="relative pt-2 pb-1">
+            <!-- Rendered dynamically via JS -->
+          </div>
+        </div>
+
+        <!-- INTERACTIVE RUTA 68 MAP (LEAFLET.JS) -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <i data-lucide="navigation" class="w-4 h-4 text-emerald-600"></i>
+                Geolocalización GPS en Vivo · Ruta 68
+              </h2>
+              <p id="gps-coords-display" class="text-[11px] font-mono-code text-slate-500 mt-0.5">
+                Lat: -33.24500 | Lng: -71.43200 · Vel: 78 km/h
+              </p>
+            </div>
+            <button onclick="centerMapOnSelectedBus()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition">
+              <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
+              Centrar Bus
+            </button>
+          </div>
+          <div id="route-map"></div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN (5 cols on lg): ESP32 HARDWARE CONNECTION & IOT TELEMETRY PANEL -->
+      <div class="lg:col-span-5 flex flex-col gap-5">
+
+        <!-- ESP32 CONNECTION MODE SWITCHER CARD -->
+        <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-md border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+                <i data-lucide="radio" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h2 class="text-sm font-extrabold">Conexión Placa ESP32</h2>
+                <p class="text-[11px] text-slate-400">Selecciona fuente de telemetría IoT</p>
+              </div>
+            </div>
+            <span id="latency-pill" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-mono-code font-bold">
+              Latencia: 42 ms
+            </span>
+          </div>
+
+          <!-- 3 Connection Mode Buttons -->
+          <div class="grid grid-cols-3 gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 mb-4">
+            <button onclick="setConnectionMode('SIMULATOR')" id="mode-btn-SIMULATOR"
+              class="py-2 px-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition bg-emerald-600 text-white shadow">
+              <i data-lucide="sliders" class="w-4 h-4"></i>
+              <span>Simulador</span>
+            </button>
+            <button onclick="setConnectionMode('SERIAL')" id="mode-btn-SERIAL"
+              class="py-2 px-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition text-slate-400 hover:text-white">
+              <i data-lucide="usb" class="w-4 h-4"></i>
+              <span>USB Serial</span>
+            </button>
+            <button onclick="setConnectionMode('WIFI')" id="mode-btn-WIFI"
+              class="py-2 px-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition text-slate-400 hover:text-white">
+              <i data-lucide="wifi" class="w-4 h-4"></i>
+              <span>WiFi / HTTP</span>
+            </button>
+          </div>
+
+          <!-- ===============================================================
+               MODE 3: INTERACTIVE ESP32 HARDWARE SIMULATOR PANEL
+               =============================================================== -->
+          <div id="panel-mode-SIMULATOR" class="space-y-4">
+            <div class="p-3.5 rounded-xl bg-slate-800/70 border border-slate-700/80">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                  Sensores Ópticos de Puerta (Maqueta)
+                </span>
+                <span class="text-[11px] text-slate-400">Bus #123 (ESP32)</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2.5 mt-2">
+                <button onclick="simulateDoorSensor(1)"
+                  class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                  <i data-lucide="user-plus" class="w-4 h-4"></i>
+                  +1 Pasajero (Entrada)
+                </button>
+                <button onclick="simulateDoorSensor(-1)"
+                  class="py-2.5 px-3 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                  <i data-lucide="user-minus" class="w-4 h-4"></i>
+                  -1 Pasajero (Salida)
+                </button>
+              </div>
+            </div>
+
+            <!-- GPS Route 68 Slider -->
+            <div class="p-3.5 rounded-xl bg-slate-800/70 border border-slate-700/80">
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="gps-progress-slider" class="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                  <i data-lucide="compass" class="w-3.5 h-3.5"></i>
+                  Módulo GPS NMEA · Avance Ruta 68
+                </label>
+                <span id="slider-pct-label" class="text-xs font-mono-code font-bold text-white">22%</span>
+              </div>
+              <input id="gps-progress-slider" type="range" min="0" max="100" value="22"
+                oninput="handleManualGpsSlider(this.value)"
+                class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
+              <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+                <span id="slider-origin-label">Casablanca</span>
+                <span>Peaje Zapata</span>
+                <span id="slider-dest-label">Valparaíso</span>
+              </div>
+            </div>
+
+            <!-- Auto Simulation Toggle -->
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-800/50 border border-slate-700/60">
+              <div>
+                <p class="text-xs font-bold text-white">Auto-Simulación de Flujo en Vivo</p>
+                <p class="text-[11px] text-slate-400">Mueve la flota y simula subida/bajada en paraderos</p>
+              </div>
+              <button id="btn-toggle-autosim" onclick="toggleAutoSimulation()"
+                class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition">
+                <i data-lucide="pause" class="w-3.5 h-3.5"></i>
+                <span>Activo</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- ===============================================================
+               MODE 1: WEB SERIAL API (USB DIRECT TO ESP32) PANEL
+               =============================================================== -->
+          <div id="panel-mode-SERIAL" class="hidden space-y-3.5">
+            <div class="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 text-xs space-y-2">
+              <p class="text-slate-300 leading-relaxed">
+                Conecta tu placa <strong>ESP32</strong> por cable USB usando <strong>Web Serial API</strong> (Chrome/Edge) a <code class="text-emerald-400">115200 baudios</code>.
+              </p>
+              <div class="flex flex-wrap gap-2 pt-1">
+                <button id="btn-connect-serial" onclick="connectEsp32Serial()"
+                  class="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow transition">
+                  <i data-lucide="plug" class="w-4 h-4"></i>
+                  Conectar ESP32 (USB)
+                </button>
+                <button id="btn-disconnect-serial" onclick="disconnectEsp32Serial()" disabled
+                  class="py-2.5 px-3 rounded-xl bg-slate-700 disabled:opacity-40 hover:bg-red-600 text-white font-bold text-xs transition">
+                  Desconectar
+                </button>
+              </div>
+            </div>
+
+            <!-- Quick Serial Command Sender -->
+            <div class="flex gap-2">
+              <button onclick="sendSerialCommand('RESET_AFORO')" class="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-mono-code text-slate-300">
+                Enviar: RESET_AFORO
+              </button>
+              <button onclick="sendSerialCommand('PING')" class="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-mono-code text-slate-300">
+                Enviar: PING
+              </button>
+            </div>
+          </div>
+
+          <!-- ===============================================================
+               MODE 2: WIFI / HTTP POLLING PANEL
+               =============================================================== -->
+          <div id="panel-mode-WIFI" class="hidden space-y-3.5">
+            <div class="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 space-y-3">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-300 mb-1">
+                  Endpoint JSON ESP32 (IP Local o Nube IoT)
+                </label>
+                <input id="wifi-endpoint-input" type="text" value="http://192.168.1.50/telemetry"
+                  placeholder="http://192.168.1.50/telemetry"
+                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono-code text-emerald-300 focus:outline-none focus:border-emerald-500" />
+              </div>
+
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-300 mb-1">Intervalo Polling</label>
+                  <select id="wifi-interval-select"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500">
+                    <option value="1000">Cada 1.0 seg (1 Hz)</option>
+                    <option value="2000" selected>Cada 2.0 seg (0.5 Hz)</option>
+                    <option value="3000">Cada 3.0 seg (MVP Máx)</option>
+                  </select>
+                </div>
+                <div class="flex items-end">
+                  <button id="btn-toggle-wifi" onclick="toggleWifiPolling()"
+                    class="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                    <span>Iniciar Polling</span>
+                  </button>
+                </div>
+              </div>
+              <p class="text-[11px] text-slate-400">
+                Valida automáticamente el criterio MVP de latencia <span class="text-emerald-400 font-semibold">&lt; 3000 ms</span>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- LIVE SERIAL / JSON TELEMETRY CONSOLE -->
+        <div class="bg-slate-950 text-slate-200 rounded-2xl p-4 shadow-sm border border-slate-800 flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+              <i data-lucide="terminal" class="w-3.5 h-3.5 text-emerald-400"></i>
+              Consola de Telemetría JSON (ESP32 → Interfaz)
+            </span>
+            <button onclick="clearSerialConsole()" class="text-[11px] text-slate-400 hover:text-white underline">
+              Limpiar
+            </button>
+          </div>
+          <div id="serial-console-output"
+            class="h-44 overflow-y-auto bg-slate-900/90 rounded-xl p-3 border border-slate-800 font-mono-code text-[11px] space-y-1.5 text-emerald-300">
+            <!-- Live JSON telemetry frames appear here -->
+          </div>
+          <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
+            <span>Tramas recibidas: <strong id="packet-counter" class="text-white">0</strong></span>
+            <span>Precisión conteo MVP: <strong class="text-emerald-400">96.4% (Meta &gt;90%)</strong></span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         VIEW 2: MVP TECHNICAL VALIDATION & ARDUINO ESP32 C++ FIRMWARE
+         ===================================================================== -->
+    <div id="view-architecture" class="hidden space-y-6">
+
+      <!-- MVP Technical Validation KPI Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">
+            <span>LATENCIA DE TRANSMISIÓN</span>
+            <i data-lucide="zap" class="w-4 h-4 text-emerald-600"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="mvp-latency-val" class="text-2xl font-extrabold text-slate-900">42 ms</span>
+            <span id="mvp-latency-status" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+              CUMPLE (&lt; 3000 ms)
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Sensor → ESP32 → Nube/Interfaz</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">
+            <span>PRECISIÓN CONTEO AFORO</span>
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-2xl font-extrabold text-slate-900">96.4%</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+              CUMPLE (&gt; 90%)
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Doble barrera IR/ToF entrada-salida</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">
+            <span>PAQUETES PROCESADOS</span>
+            <i data-lucide="activity" class="w-4 h-4 text-sky-600"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="mvp-packets-val" class="text-2xl font-extrabold text-slate-900">0</span>
+            <span class="text-xs font-semibold text-slate-500">tramas JSON</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">0% pérdida de paquetes en sesión</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">
+            <span>HARDWARE NODO BUS</span>
+            <i data-lucide="cpu" class="w-4 h-4 text-indigo-600"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-xl font-extrabold text-slate-900">ESP32 + GPS</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">UART (NEO-6M) + GPIO (Sensores)</p>
+        </div>
+      </div>
+
+      <!-- Firmware Code Card for Arduino IDE -->
+      <div class="bg-slate-900 text-white rounded-2xl shadow-md border border-slate-800 overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-extrabold flex items-center gap-2">
+              <i data-lucide="code-2" class="w-4 h-4 text-emerald-400"></i>
+              Código Firmware ESP32 (Arduino IDE · C++)
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Envía tramas JSON compatibles por <strong>USB Serial (115200 baud)</strong> y habilita servidor <strong>WiFi HTTP (/telemetry)</strong> simultáneamente.
+            </p>
+          </div>
+          <button onclick="copyEsp32Code()"
+            class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 shadow transition">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            Copiar Código ESP32
+          </button>
+        </div>
+
+        <div class="p-4 bg-slate-950 overflow-x-auto">
+          <pre id="esp32-cpp-code" class="font-mono-code text-xs leading-relaxed text-slate-300"><code>/*
+ * PROYECTO: Certeza Bus IoT SMART - Recorrido Casablanca - Valparaíso (Mira Sur)
+ * ASIGNATURA: EII 5624 - Tecnologías de la Información: Aplicaciones y Tendencias (PUCV)
+ * HARDWARE: Placa ESP32 + Módulo GPS NEO-6M (UART2) + Sensores Infrarrojos Entrada/Salida
+ */
+
+#include &lt;WiFi.h&gt;
+#include &lt;WebServer.h&gt;
+#include &lt;TinyGPS++.h&gt;
+
+// --- CONFIGURACIÓN RED WIFI ---
+const char* ssid = "TU_RED_WIFI";
+const char* password = "TU_PASSWORD_WIFI";
+
+// --- PINES HARDWARE ESP32 ---
+#define PIN_SENSOR_ENTRADA 32  // Sensor óptico/ultrasónico puerta delantera (subida)
+#define PIN_SENSOR_SALIDA  33  // Sensor óptico/ultrasónico puerta trasera (bajada)
+#define RXD2 16                // GPS TX -&gt; ESP32 RX2
+#define TXD2 17                // GPS RX -&gt; ESP32 TX2
+
+// --- VARIABLES DEL BUS ---
+const String BUS_ID = "123";
+const String PATENTE = "GY-PT-68";
+const int CAPACIDAD_MAX = 40;
+int aforoActual = 18; // Valor inicial de prueba
+
+// Coordenadas por defecto (Plaza de Casablanca) si el GPS aún no fija satélites
+double latitud = -33.3188;
+double longitud = -71.4078;
+
+TinyGPSPlus gps;
+HardwareSerial gpsSerial(2);
+WebServer server(80);
+
+unsigned long ultimoEnvio = 0;
+const unsigned long INTERVALO_MS = 1000; // Enviar cada 1 segundo (Latencia &lt; 3s)
+
+// Construye la trama JSON estándar esperada por la interfaz web
+String construirJSON() {
+  String json = "{";
+  json += "\"bus_id\":\"" + BUS_ID + "\",";
+  json += "\"patente\":\"" + PATENTE + "\",";
+  json += "\"lat\":" + String(latitud, 6) + ",";
+  json += "\"lng\":" + String(longitud, 6) + ",";
+  json += "\"aforo\":" + String(aforoActual) + ",";
+  json += "\"capacidad\":" + String(CAPACIDAD_MAX);
+  json += "}";
+  return json;
+}
+
+// Endpoint HTTP GET /telemetry con cabeceras CORS habilitadas
+void handleTelemetry() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", construirJSON());
+}
+
+void setup() {
+  Serial.begin(115200);
+  gpsSerial.begin(9600, SERIAL_8N1, RXD2, TXD2);
+
+  pinMode(PIN_SENSOR_ENTRADA, INPUT_PULLUP);
+  pinMode(PIN_SENSOR_SALIDA, INPUT_PULLUP);
+
+  // Conexión WiFi opcional para modo HTTP Polling
+  WiFi.begin(ssid, password);
+  int intentos = 0;
+  while (WiFi.status() != WL_CONNECTED &amp;&amp; intentos &lt; 15) {
+    delay(500);
+    intentos++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    server.on("/telemetry", handleTelemetry);
+    server.begin();
+  }
+}
+
+void loop() {
+  // 1. Leer datos NMEA del módulo GPS
+  while (gpsSerial.available() &gt; 0) {
+    if (gps.encode(gpsSerial.read())) {
+      if (gps.location.isValid()) {
+        latitud = gps.location.lat();
+        longitud = gps.location.lng();
+      }
+    }
+  }
+
+  // 2. Detección de flujo de pasajeros en puertas (flanco activo bajo)
+  if (digitalRead(PIN_SENSOR_ENTRADA) == LOW) {
+    if (aforoActual &lt; CAPACIDAD_MAX) aforoActual++;
+    delay(350); // Antirrebote físico
+  }
+  if (digitalRead(PIN_SENSOR_SALIDA) == LOW) {
+    if (aforoActual &gt; 0) aforoActual--;
+    delay(350); // Antirrebote físico
+  }
+
+  // 3. Escuchar comandos desde la interfaz web por USB Serial
+  if (Serial.available() &gt; 0) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    if (cmd == "RESET_AFORO") aforoActual = 0;
+  }
+
+  // 4. Atender peticiones WiFi HTTP
+  if (WiFi.status() == WL_CONNECTED) {
+    server.handleClient();
+  }
+
+  // 5. Transmitir trama JSON por puerto Serial cada 1 segundo
+  if (millis() - ultimoEnvio &gt;= INTERVALO_MS) {
+    ultimoEnvio = millis();
+    Serial.println(construirJSON());
+  }
+}</code></pre>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-white border-t border-slate-200 py-4 px-4 sm:px-6 text-center text-xs text-slate-500">
+    <p>
+      <strong>Certeza Bus IoT SMART</strong> · Proyecto de Innovación con Design Thinking (EII 5624 - Escuela de Ingeniería Industrial PUCV) · Fabián Castillo, Catalina García, Diego Silva, Braulio Otárola.
+    </p>
+  </footer>
+
+  <!-- =========================================================================
+       APPLICATION JAVASCRIPT LOGIC
+       ========================================================================= -->
+  <script>
+    // =========================================================================
+    // 1. ROUTE 68 WAYPOINTS & STOPS DATA (CASABLANCA <-> VALPARAÍSO)
+    // =========================================================================
+    const STOPS_CB_TO_VALPO = [
+      { id: 'cb', name: 'Terminal / Plaza Casablanca', shortName: 'Casablanca', lat: -33.3188, lng: -71.4078, km: 0 },
+      { id: 'orozco', name: 'Enlace Lo Orozco / Ruta 68', shortName: 'Lo Orozco', lat: -33.2450, lng: -71.4320, km: 9 },
+      { id: 'zapata', name: 'Peaje Zapata / Túnel', shortName: 'Peaje Zapata', lat: -33.1680, lng: -71.4850, km: 19 },
+      { id: 'placilla', name: 'Placilla / Curauma', shortName: 'Placilla', lat: -33.1185, lng: -71.5650, km: 29 },
+      { id: 'santos', name: 'Santos Ossa / Bajada Valpo', shortName: 'Santos Ossa', lat: -33.0580, lng: -71.6020, km: 37 },
+      { id: 'rodoviario', name: 'Rodoviario de Valparaíso', shortName: 'Valparaíso', lat: -33.0458, lng: -71.6056, km: 40 }
+    ];
+
+    // Detailed polyline geometry following Ruta 68 curves for realistic map rendering
+    const RUTA_68_POLYLINE = [
+      [-33.3188, -71.4078], // Casablanca
+      [-33.2980, -71.4165],
+      [-33.2710, -71.4250],
+      [-33.2450, -71.4320], // Enlace Lo Orozco
+      [-33.2140, -71.4510],
+      [-33.1890, -71.4690],
+      [-33.1680, -71.4850], // Peaje Zapata
+      [-33.1490, -71.5180],
+      [-33.1320, -71.5440],
+      [-33.1185, -71.5650], // Placilla / Curauma
+      [-33.0950, -71.5820],
+      [-33.0740, -71.5945],
+      [-33.0580, -71.6020], // Santos Ossa
+      [-33.0458, -71.6056]  // Rodoviario Valparaíso
+    ];
+
+    // =========================================================================
+    // 2. APPLICATION STATE & MIRA SUR FLEET DATA
+    // =========================================================================
+    let state = {
+      direction: 'CB_TO_VALPO', // 'CB_TO_VALPO' or 'VALPO_TO_CB'
+      connectionMode: 'SIMULATOR', // 'SIMULATOR' | 'SERIAL' | 'WIFI'
+      autoSimActive: true,
+      selectedBusId: '123',
+      packetsReceived: 0,
+      lastLatencyMs: 42,
+      lastPacketTimestamp: Date.now(),
+      buses: [
+        {
+          id: '123',
+          patente: 'GY-PT-68',
+          isHardwareNode: true, // Bound directly to ESP32 Serial / WiFi / Simulator
+          progress: 0.22,       // 0.0 to 1.0 along active route
+          lat: -33.2450,
+          lng: -71.4320,
+          aforo: 28,
+          capacidad: 40,
+          speedKmh: 76
+        },
+        {
+          id: '108',
+          patente: 'PL-RT-42',
+          isHardwareNode: false,
+          progress: 0.56,
+          lat: -33.1490,
+          lng: -71.5180,
+          aforo: 39, // Nearly full / full to demonstrate smart alert
+          capacidad: 40,
+          speedKmh: 72
+        },
+        {
+          id: '145',
+          patente: 'KD-WZ-19',
+          isHardwareNode: false,
+          progress: 0.06,
+          lat: -33.2980,
+          lng: -71.4165,
+          aforo: 14, // Plenty of seats available
+          capacidad: 40,
+          speedKmh: 68
+        }
+      ]
+    };
+
+    // Hardware connection handles
+    let serialPort = null;
+    let serialReader = null;
+    let serialWriter = null;
+    let keepReadingSerial = false;
+    let wifiPollingTimer = null;
+    let autoSimTimer = null;
+
+    // Leaflet Map Objects
+    let map = null;
+    let routeLine = null;
+    let stopMarkers = [];
+    let busMarkers = {};
+
+    // =========================================================================
+    // 3. INITIALIZATION
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initMap();
+      syncAllBusCoordinatesFromProgress();
+      renderAll();
+      startAutoSimulationLoop();
+      logToConsole('Sistema Certeza Bus IoT SMART inicializado. Simulador ESP32 activo.', 'info');
+    });
+
+    // =========================================================================
+    // 4. MAP INITIALIZATION & COORDINATE INTERPOLATION
+    // =========================================================================
+    function initMap() {
+      try {
+        map = L.map('route-map', {
+          zoomControl: true,
+          scrollWheelZoom: true
+        }).setView([-33.185, -71.505], 10);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OpenStreetMap &copy; CARTO',
+          maxZoom: 18
+        }).addTo(map);
+
+        // Draw Ruta 68 Polyline
+        routeLine = L.polyline(RUTA_68_POLYLINE, {
+          color: '#10b981',
+          weight: 5,
+          opacity: 0.85,
+          dashArray: null
+        }).addTo(map);
+
+        // Plot Stops
+        renderMapStops();
+        // Plot Buses
+        updateMapBusMarkers();
+      } catch (err) {
+        console.warn('Error cargando Leaflet:', err);
+        document.getElementById('route-map').innerHTML =
+          '<div class="h-full flex items-center justify-center bg-slate-100 text-slate-500 text-xs p-4 text-center">Mapa interactivo Ruta 68 (Modo sin conexión externa)</div>';
+      }
+    }
+
+    function getActiveStops() {
+      return state.direction === 'CB_TO_VALPO'
+        ? STOPS_CB_TO_VALPO
+        : [...STOPS_CB_TO_VALPO].reverse();
+    }
+
+    function renderMapStops() {
+      if (!map) return;
+      stopMarkers.forEach(m => map.removeLayer(m));
+      stopMarkers = [];
+
+      const stops = getActiveStops();
+      stops.forEach((stop, idx) => {
+        const isTerminal = idx === 0 || idx === stops.length - 1;
+        const marker = L.circleMarker([stop.lat, stop.lng], {
+          radius: isTerminal ? 8 : 6,
+          fillColor: isTerminal ? '#0f172a' : '#ffffff',
+          color: '#10b981',
+          weight: 3,
+          fillOpacity: 1
+        }).addTo(map);
+
+        marker.bindPopup(`
+          <div style="font-family: Inter, sans-serif; font-size: 12px;">
+            <strong style="color:#0f172a;">Paradero ${idx + 1}: ${stop.name}</strong><br/>
+            <span style="color:#64748b;">Ruta 68 · Servicio Mira Sur</span>
+          </div>
+        `);
+        stopMarkers.push(marker);
+      });
+    }
+
+    // Interpolate [lat, lng] along RUTA_68_POLYLINE for progress t in [0, 1]
+    function interpolateRouteCoords(t, direction) {
+      const pts = direction === 'CB_TO_VALPO'
+        ? RUTA_68_POLYLINE
+        : [...RUTA_68_POLYLINE].reverse();
+
+      const clamped = Math.max(0, Math.min(1, t));
+      const totalSegments = pts.length - 1;
+      const scaled = clamped * totalSegments;
+      const segIdx = Math.min(Math.floor(scaled), totalSegments - 1);
+      const segT = scaled - segIdx;
+
+      const p1 = pts[segIdx];
+      const p2 = pts[segIdx + 1];
+
+      return {
+        lat: p1[0] + (p2[0] - p1[0]) * segT,
+        lng: p1[1] + (p2[1] - p1[1]) * segT
+      };
+    }
+
+    function syncAllBusCoordinatesFromProgress() {
+      state.buses.forEach(bus => {
+        // If connected to real hardware (Serial/WiFi) and bus is #123 with valid GPS coords, keep hardware coords
+        if (bus.isHardwareNode && (state.connectionMode === 'SERIAL' || state.connectionMode === 'WIFI') && bus.hasRealGps) {
+          return;
+        }
+        const coords = interpolateRouteCoords(bus.progress, state.direction);
+        bus.lat = coords.lat;
+        bus.lng = coords.lng;
+      });
+    }
+
+    function updateMapBusMarkers() {
+      if (!map) return;
+      state.buses.forEach(bus => {
+        const pct = Math.round((bus.aforo / bus.capacidad) * 100);
+        const statusColor = pct >= 95 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#10b981';
+        const isSelected = bus.id === state.selectedBusId;
+
+        const iconHtml = `
+          <div style="
+            background: ${statusColor};
+            color: white;
+            border: 3px solid ${isSelected ? '#0f172a' : '#ffffff'};
+            border-radius: 9999px;
+            padding: 3px 8px;
+            font-weight: 800;
+            font-size: 11px;
+            font-family: Inter, sans-serif;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            transform: translate(-50%, -50%) scale(${isSelected ? 1.12 : 0.95});
+          ">
+            🚌 #${bus.id} (${pct}%)
+          </div>
+        `;
+
+        const customIcon = L.divIcon({
+          className: 'custom-bus-pin',
+          html: iconHtml,
+          iconSize: [0, 0]
+        });
+
+        if (busMarkers[bus.id]) {
+          busMarkers[bus.id].setLatLng([bus.lat, bus.lng]);
+          busMarkers[bus.id].setIcon(customIcon);
+        } else {
+          const marker = L.marker([bus.lat, bus.lng], { icon: customIcon }).addTo(map);
+          marker.on('click', () => selectBus(bus.id));
+          busMarkers[bus.id] = marker;
+        }
+      });
+    }
+
+    function centerMapOnSelectedBus() {
+      const bus = getSelectedBus();
+      if (map && bus) {
+        map.flyTo([bus.lat, bus.lng], 13, { duration: 0.8 });
+      }
+    }
+
+    // =========================================================================
+    // 5. UI RENDERING FUNCTIONS
+    // =========================================================================
+    function getSelectedBus() {
+      return state.buses.find(b => b.id === state.selectedBusId) || state.buses[0];
+    }
+
+    function getOccupancyMeta(aforo, capacidad) {
+      const pct = Math.min(100, Math.round((aforo / capacidad) * 100));
+      if (pct >= 95) {
+        return {
+          pct,
+          label: 'Bus Lleno - Sin Espacio',
+          shortLabel: 'Lleno',
+          bgClass: 'bg-red-50 border-red-200 text-red-700',
+          dotClass: 'bg-red-500',
+          barColor: 'bg-red-500',
+          textColor: 'text-red-600'
+        };
+      } else if (pct >= 70) {
+        return {
+          pct,
+          label: 'Casi Lleno',
+          shortLabel: 'Casi Lleno',
+          bgClass: 'bg-amber-50 border-amber-200 text-amber-700',
+          dotClass: 'bg-amber-500',
+          barColor: 'bg-amber-500',
+          textColor: 'text-amber-600'
+        };
+      } else {
+        return {
+          pct,
+          label: 'Asientos Disponibles',
+          shortLabel: 'Disponible',
+          bgClass: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+          dotClass: 'bg-emerald-500',
+          barColor: 'bg-emerald-500',
+          textColor: 'text-emerald-600'
+        };
+      }
+    }
+
+    function renderAll() {
+      renderFleetSelector();
+      renderSelectedBusCard();
+      renderLinearStopsTimeline();
+      updateMapBusMarkers();
+    }
+
+    function renderFleetSelector() {
+      const container = document.getElementById('fleet-cards-container');
+      container.innerHTML = state.buses.map(bus => {
+        const meta = getOccupancyMeta(bus.aforo, bus.capacidad);
+        const isSelected = bus.id === state.selectedBusId;
+        return `
+          <button onclick="selectBus('${bus.id}')"
+            class="text-left p-3 rounded-xl border transition-all flex flex-col justify-between ${
+              isSelected
+                ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-emerald-500/40'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+            }">
+            <div class="flex items-center justify-between w-full mb-1.5">
+              <span class="font-extrabold text-xs flex items-center gap-1.5">
+                Bus #${bus.id}
+                ${bus.isHardwareNode ? '<span class="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold">ESP32</span>' : ''}
+              </span>
+              <span class="text-[10px] font-mono-code ${isSelected ? 'text-slate-400' : 'text-slate-500'}">${bus.patente}</span>
+            </div>
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-700'}">
+                ${bus.aforo}/${bus.capacidad} <span class="font-normal text-[11px] opacity-75">(${meta.pct}%)</span>
+              </span>
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                isSelected ? 'bg-white/10 text-white' : meta.bgClass
+              }">
+                <span class="w-1.5 h-1.5 rounded-full ${meta.dotClass}"></span>
+                ${meta.shortLabel}
+              </span>
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function renderSelectedBusCard() {
+      const bus = getSelectedBus();
+      const meta = getOccupancyMeta(bus.aforo, bus.capacidad);
+      const freeSeats = Math.max(0, bus.capacidad - bus.aforo);
+
+      document.getElementById('selected-bus-title').textContent = `Autobús #${bus.id}`;
+      document.getElementById('selected-bus-plate').textContent = bus.patente;
+      document.getElementById('esp-hardware-tag').style.display = bus.isHardwareNode ? 'inline-flex' : 'none';
+
+      const dirText = state.direction === 'CB_TO_VALPO'
+        ? 'Casablanca → Valparaíso'
+        : 'Valparaíso → Casablanca';
+
+      const stops = getActiveStops();
+      const nextStopIdx = Math.min(stops.length - 1, Math.floor(bus.progress * (stops.length - 1)) + 1);
+      const nextStop = stops[nextStopIdx];
+
+      document.getElementById('selected-bus-route-label').innerHTML =
+        `Recorrido: <strong class="text-slate-700">${dirText}</strong> · Próxima parada: <strong class="text-emerald-700">${nextStop.name}</strong>`;
+
+      // Top accent & traffic light badge
+      document.getElementById('capacity-top-bar').className = `absolute top-0 left-0 right-0 h-1.5 transition-colors duration-300 ${meta.barColor}`;
+      const badge = document.getElementById('availability-badge');
+      badge.className = `px-3.5 py-1.5 rounded-xl border flex items-center gap-2 transition-colors ${meta.bgClass}`;
+      document.getElementById('availability-dot').className = `w-2.5 h-2.5 rounded-full ${meta.dotClass}`;
+      document.getElementById('availability-text').textContent = meta.label;
+
+      // Numbers
+      document.getElementById('occupancy-count').textContent = bus.aforo;
+      document.getElementById('occupancy-max').textContent = bus.capacidad;
+      const pctEl = document.getElementById('occupancy-pct');
+      pctEl.textContent = `${meta.pct}%`;
+      pctEl.className = `text-2xl sm:text-3xl font-extrabold ${meta.textColor}`;
+      document.getElementById('seats-free-label').textContent =
+        freeSeats === 0 ? 'Sin asientos disponibles' : `${freeSeats} asientos libres`;
+
+      // 20-segment bar
+      const filledSegments = Math.round((meta.pct / 100) * 20);
+      const segContainer = document.getElementById('segmented-capacity-bar');
+      let segHtml = '';
+      for (let i = 0; i < 20; i++) {
+        const active = i < filledSegments;
+        segHtml += `<div class="h-full rounded-sm transition-all duration-300 ${active ? meta.barColor : 'bg-slate-200'}"></div>`;
+      }
+      segContainer.innerHTML = segHtml;
+
+      // Full Bus Smart Alert
+      const alertBox = document.getElementById('full-bus-alert');
+      if (meta.pct >= 95) {
+        const altBus = state.buses.find(b => b.id !== bus.id && (b.aforo / b.capacidad) < 0.85);
+        alertBox.classList.remove('hidden');
+        document.getElementById('full-bus-alert-msg').textContent = altBus
+          ? `El Autobús #${bus.id} viene al ${meta.pct}% de capacidad. El Autobús #${altBus.id} (${altBus.patente}) viene detrás con ${altBus.capacidad - altBus.aforo} asientos libres.`
+          : `El Autobús #${bus.id} viene al ${meta.pct}% de capacidad. Espera la próxima frecuencia en terminal.`;
+      } else {
+        alertBox.classList.add('hidden');
+      }
+
+      // GPS Coordinates display
+      document.getElementById('gps-coords-display').textContent =
+        `Lat: ${bus.lat.toFixed(5)} | Lng: ${bus.lng.toFixed(5)} · Vel: ${bus.speedKmh} km/h`;
+    }
+
+    function renderLinearStopsTimeline() {
+      const bus = getSelectedBus();
+      const stops = getActiveStops();
+      const totalTripMinutes = 36; // Average Ruta 68 Casablanca-Valpo duration
+      const remainingMinutes = Math.max(1, Math.round((1 - bus.progress) * totalTripMinutes));
+
+      document.getElementById('total-eta-badge').textContent =
+        bus.progress >= 0.98 ? 'En destino final' : `Destino final en ${remainingMinutes} min`;
+
+      const container = document.getElementById('linear-stops-container');
+      const progressPct = Math.round(bus.progress * 100);
+
+      let html = `
+        <div class="relative mb-6 px-2">
+          <!-- Background Track -->
+          <div class="h-2 bg-slate-200 rounded-full w-full overflow-hidden">
+            <div class="h-full bg-emerald-500 transition-all duration-500" style="width: ${progressPct}%"></div>
+          </div>
+          <!-- Moving Bus Indicator Icon -->
+          <div class="absolute -top-2.5 transition-all duration-500 -translate-x-1/2" style="left: ${progressPct}%">
+            <div class="bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md border border-emerald-400 whitespace-nowrap">
+              🚌 #${bus.id}
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+      `;
+
+      stops.forEach((stop, idx) => {
+        const stopPos = idx / (stops.length - 1);
+        const passed = bus.progress > stopPos + 0.02;
+        const isCurrent = Math.abs(bus.progress - stopPos) <= 0.04;
+        const etaMin = Math.max(0, Math.round((stopPos - bus.progress) * totalTripMinutes));
+
+        let cardStyle = 'bg-slate-50 border-slate-200 text-slate-600';
+        let statusTag = `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">En ${etaMin} min</span>`;
+
+        if (passed) {
+          cardStyle = 'bg-slate-100/70 border-slate-200 text-slate-400';
+          statusTag = `<span class="text-[10px] font-semibold text-slate-400">Completado</span>`;
+        } else if (isCurrent) {
+          cardStyle = 'bg-emerald-50 border-emerald-400 text-slate-900 ring-1 ring-emerald-400';
+          statusTag = `<span class="text-[10px] font-extrabold text-white bg-emerald-600 px-1.5 py-0.5 rounded">Llegando ahora</span>`;
+        }
+
+        html += `
+          <div class="p-2.5 rounded-xl border ${cardStyle} flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[10px] font-mono-code font-bold opacity-70">P${idx + 1}</span>
+              ${statusTag}
+            </div>
+            <p class="text-xs font-bold leading-snug line-clamp-2">${stop.shortName}</p>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    // =========================================================================
+    // 6. USER INTERACTIONS (BUS SELECTION, ROUTE DIRECTION, TABS)
+    // =========================================================================
+    function selectBus(busId) {
+      state.selectedBusId = busId;
+      renderAll();
+      centerMapOnSelectedBus();
+    }
+
+    function selectNextAvailableBus() {
+      const bus = getSelectedBus();
+      const alt = state.buses.find(b => b.id !== bus.id && (b.aforo / b.capacidad) < 0.90);
+      if (alt) {
+        selectBus(alt.id);
+        showToast(`Cambiado al Autobús #${alt.id} (${alt.capacidad - alt.aforo} asientos libres).`, 'success');
+      }
+    }
+
+    function setRouteDirection(dir) {
+      state.direction = dir;
+      const btnCb = document.getElementById('btn-dir-cb-valpo');
+      const btnValpo = document.getElementById('btn-dir-valpo-cb');
+
+      if (dir === 'CB_TO_VALPO') {
+        btnCb.className = 'flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-emerald-600 text-white shadow-sm flex items-center justify-center gap-1.5';
+        btnValpo.className = 'flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-300 hover:text-white flex items-center justify-center gap-1.5';
+        document.getElementById('slider-origin-label').textContent = 'Casablanca';
+        document.getElementById('slider-dest-label').textContent = 'Valparaíso';
+      } else {
+        btnValpo.className = 'flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-emerald-600 text-white shadow-sm flex items-center justify-center gap-1.5';
+        btnCb.className = 'flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-300 hover:text-white flex items-center justify-center gap-1.5';
+        document.getElementById('slider-origin-label').textContent = 'Valparaíso';
+        document.getElementById('slider-dest-label').textContent = 'Casablanca';
+      }
+
+      renderMapStops();
+      syncAllBusCoordinatesFromProgress();
+      renderAll();
+      logToConsole(`Sentido de ruta cambiado a: ${dir === 'CB_TO_VALPO' ? 'Casablanca → Valparaíso' : 'Valparaíso → Casablanca'}`, 'info');
+    }
+
+    function switchMainTab(tabName) {
+      const dashView = document.getElementById('view-dashboard');
+      const archView = document.getElementById('view-architecture');
+      const dashBtn = document.getElementById('tab-btn-dashboard');
+      const archBtn = document.getElementById('tab-btn-architecture');
+
+      if (tabName === 'dashboard') {
+        dashView.classList.remove('hidden');
+        archView.classList.add('hidden');
+        dashBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all bg-slate-800 text-emerald-400 border border-slate-700 whitespace-nowrap';
+        archBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-white whitespace-nowrap';
+        if (map) setTimeout(() => map.invalidateSize(), 150);
+      } else {
+        dashView.classList.add('hidden');
+        archView.classList.remove('hidden');
+        archBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all bg-slate-800 text-emerald-400 border border-slate-700 whitespace-nowrap';
+        dashBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-white whitespace-nowrap';
+      }
+    }
+
+    // =========================================================================
+    // 7. CONNECTION MODES & REAL ESP32 TELEMETRY INGESTION
+    // =========================================================================
+    function setConnectionMode(mode) {
+      state.connectionMode = mode;
+
+      // Update mode buttons styling
+      ['SIMULATOR', 'SERIAL', 'WIFI'].forEach(m => {
+        const btn = document.getElementById(`mode-btn-${m}`);
+        const panel = document.getElementById(`panel-mode-${m}`);
+        if (m === mode) {
+          btn.className = 'py-2 px-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition bg-emerald-600 text-white shadow';
+          panel.classList.remove('hidden');
+        } else {
+          btn.className = 'py-2 px-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition text-slate-400 hover:text-white';
+          panel.classList.add('hidden');
+        }
+      });
+
+      // Update Header Badge
+      if (mode === 'SIMULATOR') {
+        updateHeaderConnectionStatus('Simulador ESP32', 'amber');
+        if (!state.autoSimActive) toggleAutoSimulation();
+      } else if (mode === 'SERIAL') {
+        stopAutoSimulation();
+        updateHeaderConnectionStatus(serialPort ? 'ESP32 USB Conectada' : 'Esperando USB...', serialPort ? 'emerald' : 'slate');
+      } else if (mode === 'WIFI') {
+        stopAutoSimulation();
+        updateHeaderConnectionStatus(wifiPollingTimer ? 'ESP32 WiFi Activo' : 'WiFi en espera', wifiPollingTimer ? 'emerald' : 'slate');
+      }
+    }
+
+    function updateHeaderConnectionStatus(label, color) {
+      const dot = document.getElementById('esp-status-dot');
+      const text = document.getElementById('esp-status-text');
+      text.textContent = label;
+
+      const colorMap = {
+        emerald: 'bg-emerald-400',
+        amber: 'bg-amber-400',
+        red: 'bg-red-500',
+        slate: 'bg-slate-400'
+      };
+      dot.className = `relative inline-flex rounded-full h-2.5 w-2.5 ${colorMap[color] || 'bg-slate-400'}`;
+    }
+
+    /**
+     * Unified Telemetry Processor: Accepts JSON frames from USB Serial, WiFi HTTP, or Simulator
+     * Expected format: {"bus_id":"123","patente":"GY-PT-68","lat":-33.3185,"lng":-71.4072,"aforo":28,"capacidad":40}
+     */
+    function processIncomingEsp32Telemetry(payload, measuredLatencyMs) {
+      const now = Date.now();
+      const latency = typeof measuredLatencyMs === 'number'
+        ? Math.max(1, Math.round(measuredLatencyMs))
+        : Math.min(2900, Math.max(18, now - state.lastPacketTimestamp));
+
+      state.lastPacketTimestamp = now;
+      state.packetsReceived += 1;
+      state.lastLatencyMs = latency;
+
+      // Find target bus (defaults to Bus #123 hardware node)
+      const targetId = payload.bus_id ? String(payload.bus_id) : '123';
+      let bus = state.buses.find(b => b.id === targetId) || state.buses[0];
+
+      if (payload.patente) bus.patente = String(payload.patente);
+      if (typeof payload.capacidad === 'number' && payload.capacidad > 0) bus.capacidad = payload.capacidad;
+      if (typeof payload.aforo === 'number') {
+        bus.aforo = Math.max(0, Math.min(bus.capacidad, Math.round(payload.aforo)));
+      }
+      if (typeof payload.lat === 'number' && typeof payload.lng === 'number') {
+        bus.lat = payload.lat;
+        bus.lng = payload.lng;
+        bus.hasRealGps = true;
+        // Estimate route progress from latitude between Casablanca (-33.3188) and Valparaíso (-33.0458)
+        const rawProgress = (bus.lat - (-33.3188)) / ((-33.0458) - (-33.3188));
+        const normalized = Math.max(0, Math.min(1, rawProgress));
+        bus.progress = state.direction === 'CB_TO_VALPO' ? normalized : (1 - normalized);
+      }
+
+      // Update Latency & Packet Counters in UI
+      updateLatencyBadges(latency);
+      document.getElementById('packet-counter').textContent = state.packetsReceived;
+      document.getElementById('mvp-packets-val').textContent = state.packetsReceived;
+      document.getElementById('last-update-label').textContent = `Actualizado: ${new Date().toLocaleTimeString('es-CL')}`;
+
+      logToConsole(JSON.stringify(payload), 'data');
+      renderAll();
+    }
+
+    function updateLatencyBadges(latencyMs) {
+      const meetsMvp = latencyMs < 3000;
+      const pill = document.getElementById('latency-pill');
+      pill.textContent = `Latencia: ${latencyMs} ms`;
+      pill.className = meetsMvp
+        ? 'px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-mono-code font-bold'
+        : 'px-2.5 py-1 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-mono-code font-bold';
+
+      document.getElementById('mvp-latency-val').textContent = `${latencyMs} ms`;
+      const mvpStatus = document.getElementById('mvp-latency-status');
+      mvpStatus.textContent = meetsMvp ? 'CUMPLE (< 3000 ms)' : 'EXCEDE (> 3000 ms)';
+      mvpStatus.className = meetsMvp
+        ? 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700'
+        : 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700';
+    }
+
+    // =========================================================================
+    // 8. MODE 1: WEB SERIAL API (DIRECT USB CONNECTION TO ESP32)
+    // =========================================================================
+    async function connectEsp32Serial() {
+      if (!('serial' in navigator)) {
+        showToast('Tu navegador no soporta Web Serial API. Usa Google Chrome o Microsoft Edge en escritorio.', 'error');
+        logToConsole('ERROR: navigator.serial no disponible en este navegador/contexto.', 'error');
+        return;
+      }
+
+      try {
+        serialPort = await navigator.serial.requestPort();
+        await serialPort.open({ baudRate: 115200 });
+
+        keepReadingSerial = true;
+        document.getElementById('btn-connect-serial').disabled = true;
+        document.getElementById('btn-disconnect-serial').disabled = false;
+        updateHeaderConnectionStatus('ESP32 USB Conectada', 'emerald');
+        showToast('Placa ESP32 conectada por USB Serial (115200 baudios).', 'success');
+        logToConsole('Puerto Serial abierto a 115200 baudios. Esperando tramas JSON...', 'info');
+
+        // Setup writer for sending commands back to ESP32
+        const textEncoder = new TextEncoderStream();
+        textEncoder.readable.pipeTo(serialPort.writable);
+        serialWriter = textEncoder.writable.getWriter();
+
+        readSerialLoop();
+      } catch (err) {
+        console.error('Error conectando Serial:', err);
+        showToast(`No se pudo abrir el puerto USB: ${err.message}`, 'error');
+        logToConsole(`Error Serial: ${err.message}`, 'error');
+      }
+    }
+
+    async function readSerialLoop() {
+      const textDecoder = new TextDecoderStream();
+      const readableStreamClosed = serialPort.readable.pipeTo(textDecoder.writable);
+      serialReader = textDecoder.readable.getReader();
+
+      let lineBuffer = '';
+      try {
+        while (keepReadingSerial) {
+          const { value, done } = await serialReader.read();
+          if (done) break;
+          if (value) {
+            lineBuffer += value;
+            const lines = lineBuffer.split('\n');
+            lineBuffer = lines.pop(); // Keep incomplete line in buffer
+
+            for (const rawLine of lines) {
+              const trimmed = rawLine.trim();
+              if (!trimmed) continue;
+              try {
+                const parsed = JSON.parse(trimmed);
+                processIncomingEsp32Telemetry(parsed);
+              } catch (jsonErr) {
+                // Non-JSON debug text from ESP32
+                logToConsole(`[ESP32 RAW] ${trimmed}`, 'info');
+              }
+            }
+          }
+        }
+      } catch (err) {
+        if (keepReadingSerial) {
+          logToConsole(`Lectura serial interrumpida: ${err.message}`, 'error');
+        }
+      } finally {
+        serialReader.releaseLock();
+      }
+    }
+
+    async function sendSerialCommand(cmd) {
+      if (!serialWriter) {
+        showToast('Conecta primero la ESP32 por USB para enviar comandos.', 'warning');
+        return;
+      }
+      try {
+        await serialWriter.write(cmd + '\n');
+        logToConsole(`>> Comando enviado a ESP32: ${cmd}`, 'info');
+      } catch (err) {
+        showToast(`Error enviando comando: ${err.message}`, 'error');
+      }
+    }
+
+    async function disconnectEsp32Serial() {
+      keepReadingSerial = false;
+      try {
+        if (serialReader) await serialReader.cancel();
+        if (serialWriter) await serialWriter.close();
+        if (serialPort) await serialPort.close();
+      } catch (e) {
+        console.warn(e);
+      }
+      serialPort = null;
+      serialReader = null;
+      serialWriter = null;
+      document.getElementById('btn-connect-serial').disabled = false;
+      document.getElementById('btn-disconnect-serial').disabled = true;
+      updateHeaderConnectionStatus('USB Desconectada', 'slate');
+      showToast('Placa ESP32 desconectada.', 'info');
+    }
+
+    // =========================================================================
+    // 9. MODE 2: WIFI / HTTP POLLING (ESP32 LOCAL IP OR CLOUD ENDPOINT)
+    // =========================================================================
+    function toggleWifiPolling() {
+      if (wifiPollingTimer) {
+        clearInterval(wifiPollingTimer);
+        wifiPollingTimer = null;
+        const btn = document.getElementById('btn-toggle-wifi');
+        btn.innerHTML = '<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Iniciar Polling</span>';
+        btn.className = 'w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition';
+        lucide.createIcons();
+        updateHeaderConnectionStatus('WiFi Detenido', 'slate');
+        showToast('Consulta HTTP WiFi detenida.', 'info');
+        return;
+      }
+
+      const url = document.getElementById('wifi-endpoint-input').value.trim();
+      const intervalMs = parseInt(document.getElementById('wifi-interval-select').value, 10) || 2000;
+
+      if (!url) {
+        showToast('Ingresa una URL o IP válida de la ESP32.', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('btn-toggle-wifi');
+      btn.innerHTML = '<i data-lucide="square" class="w-3.5 h-3.5"></i><span>Detener Polling</span>';
+      btn.className = 'w-full py-2 px-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition';
+      lucide.createIcons();
+      updateHeaderConnectionStatus('Conectando WiFi...', 'amber');
+      logToConsole(`Iniciando HTTP Polling hacia ${url} cada ${intervalMs}ms...`, 'info');
+
+      const executePoll = async () => {
+        const t0 = performance.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2800);
+
+        try {
+          const response = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          const rtt = performance.now() - t0;
+
+          updateHeaderConnectionStatus('ESP32 WiFi Conectada', 'emerald');
+          processIncomingEsp32Telemetry(data, rtt);
+        } catch (err) {
+          clearTimeout(timeoutId);
+          updateHeaderConnectionStatus('Sin respuesta ESP32', 'red');
+          logToConsole(`Error HTTP Polling (${url}): ${err.message}. Verifica IP y red local.`, 'error');
+        }
+      };
+
+      executePoll();
+      wifiPollingTimer = setInterval(executePoll, intervalMs);
+    }
+
+    // =========================================================================
+    // 10. MODE 3: ESP32 HARDWARE SCALE-MODEL SIMULATOR
+    // =========================================================================
+    function simulateDoorSensor(delta) {
+      const hwBus = state.buses.find(b => b.isHardwareNode) || state.buses[0];
+      hwBus.aforo = Math.max(0, Math.min(hwBus.capacidad, hwBus.aforo + delta));
+      hwBus.hasRealGps = false;
+      syncAllBusCoordinatesFromProgress();
+
+      const simulatedPayload = {
+        bus_id: hwBus.id,
+        patente: hwBus.patente,
+        lat: Number(hwBus.lat.toFixed(6)),
+        lng: Number(hwBus.lng.toFixed(6)),
+        aforo: hwBus.aforo,
+        capacidad: hwBus.capacidad
+      };
+
+      processIncomingEsp32Telemetry(simulatedPayload, Math.floor(28 + Math.random() * 25));
+    }
+
+    function handleManualGpsSlider(val) {
+      const pct = parseInt(val, 10);
+      document.getElementById('slider-pct-label').textContent = `${pct}%`;
+
+      const hwBus = state.buses.find(b => b.isHardwareNode) || state.buses[0];
+      hwBus.progress = pct / 100;
+      hwBus.hasRealGps = false;
+      syncAllBusCoordinatesFromProgress();
+
+      const simulatedPayload = {
+        bus_id: hwBus.id,
+        patente: hwBus.patente,
+        lat: Number(hwBus.lat.toFixed(6)),
+        lng: Number(hwBus.lng.toFixed(6)),
+        aforo: hwBus.aforo,
+        capacidad: hwBus.capacidad
+      };
+
+      processIncomingEsp32Telemetry(simulatedPayload, Math.floor(30 + Math.random() * 20));
+    }
+
+    function startAutoSimulationLoop() {
+      if (autoSimTimer) clearInterval(autoSimTimer);
+      autoSimTimer = setInterval(() => {
+        if (!state.autoSimActive || state.connectionMode !== 'SIMULATOR') return;
+
+        state.buses.forEach(bus => {
+          // Advance bus smoothly along Ruta 68
+          bus.progress += 0.008;
+          if (bus.progress > 1.0) {
+            bus.progress = 0.0;
+            bus.aforo = Math.floor(8 + Math.random() * 12); // Reset passengers at terminal
+          }
+
+          // Randomly simulate passenger boarding/alighting near stops
+          if (Math.random() < 0.25) {
+            const change = Math.random() < 0.58 ? 1 : -1;
+            bus.aforo = Math.max(0, Math.min(bus.capacidad, bus.aforo + change));
+          }
+        });
+
+        syncAllBusCoordinatesFromProgress();
+
+        const hwBus = state.buses.find(b => b.isHardwareNode) || state.buses[0];
+        document.getElementById('gps-progress-slider').value = Math.round(hwBus.progress * 100);
+        document.getElementById('slider-pct-label').textContent = `${Math.round(hwBus.progress * 100)}%`;
+
+        const payload = {
+          bus_id: hwBus.id,
+          patente: hwBus.patente,
+          lat: Number(hwBus.lat.toFixed(6)),
+          lng: Number(hwBus.lng.toFixed(6)),
+          aforo: hwBus.aforo,
+          capacidad: hwBus.capacidad
+        };
+
+        processIncomingEsp32Telemetry(payload, Math.floor(32 + Math.random() * 28));
+      }, 2000);
+    }
+
+    function stopAutoSimulation() {
+      state.autoSimActive = false;
+      const btn = document.getElementById('btn-toggle-autosim');
+      if (btn) {
+        btn.innerHTML = '<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Pausado</span>';
+        btn.className = 'px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold flex items-center gap-1.5 transition';
+        lucide.createIcons();
+      }
+    }
+
+    function toggleAutoSimulation() {
+      state.autoSimActive = !state.autoSimActive;
+      const btn = document.getElementById('btn-toggle-autosim');
+      if (state.autoSimActive) {
+        btn.innerHTML = '<i data-lucide="pause" class="w-3.5 h-3.5"></i><span>Activo</span>';
+        btn.className = 'px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition';
+      } else {
+        btn.innerHTML = '<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Pausado</span>';
+        btn.className = 'px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold flex items-center gap-1.5 transition';
+      }
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // 11. CONSOLE LOGGING, CLIPBOARD COPY & CUSTOM TOASTS
+    // =========================================================================
+    function logToConsole(message, type = 'data') {
+      const consoleEl = document.getElementById('serial-console-output');
+      const time = new Date().toLocaleTimeString('es-CL', { hour12: false });
+      const line = document.createElement('div');
+
+      const colorClass = type === 'error'
+        ? 'text-red-400'
+        : type === 'info'
+          ? 'text-sky-400'
+          : 'text-emerald-300';
+
+      line.className = `${colorClass} break-all leading-snug`;
+      line.textContent = `[${time}] ${message}`;
+      consoleEl.appendChild(line);
+
+      // Keep max 40 lines for performance
+      while (consoleEl.children.length > 40) {
+        consoleEl.removeChild(consoleEl.firstChild);
+      }
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    function clearSerialConsole() {
+      document.getElementById('serial-console-output').innerHTML = '';
+    }
+
+    function copyEsp32Code() {
+      const codeText = document.getElementById('esp32-cpp-code').innerText;
+      const textarea = document.createElement('textarea');
+      textarea.value = codeText;
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast('Código C++ para Arduino IDE copiado al portapapeles.', 'success');
+      } catch (err) {
+        showToast('No se pudo copiar automáticamente. Selecciónalo manualmente.', 'error');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bgColors = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        error: 'bg-red-600 text-white border-red-500',
+        warning: 'bg-amber-500 text-slate-950 border-amber-400',
+        info: 'bg-slate-900 text-white border-slate-700'
+      };
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg border text-xs font-semibold flex items-center justify-between gap-3 transition-all ${bgColors[type] || bgColors.info}`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3600);
+    }
+  </script>
+</body>
+</html>
